@@ -1,0 +1,64 @@
+name: Update timezone files from https://github.com/eggert/tz
+
+# Controls when the workflow will run
+on:
+  schedule:
+    - cron:  '0 0 1 * *'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+        
+      - uses: actions/checkout@v3
+        with:
+          repository: eggert/tz
+          path: "eggert-tz"
+
+      - name: Setup credentials
+        uses: oleksiyrudenko/gha-git-credentials@v2.1
+        with:
+          name: 'Richard Muvirimi'
+          email: 'rich4rdmuvirimi@gmail.com'
+          actor: ${{ secrets.GIT_USERNAME }}
+          token: ${{ secrets.GIT_TOKEN }}
+          
+      - name: Copy required timezone files
+        run: cp --preserve=timestamps "./eggert-tz/backward" "./eggert-tz/zone.tab" "./library/src/main/assets/"
+        
+      - name: Clean up timezone files
+        run: rm -rf "./eggert-tz"
+        
+      - name: Add changes
+        run: git add -A
+        
+      - name: Check if there is anything to commit and save to environment
+        run:  echo "FILES_CHANGED=$(git diff --cached --exit-code && 'true' | 'false')" >> $GITHUB_ENV
+        
+      - name: Commit files
+        if: ${{ env.FILES_CHANGED == 'true' }}
+        run: git commit -m "Update dependencies" -a
+            
+      - name: Bump version and push tag
+        if: ${{ env.FILES_CHANGED == 'true' }}
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Create a GitHub release
+        if: ${{ env.FILES_CHANGED == 'true' }}
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
