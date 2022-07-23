@@ -1,4 +1,4 @@
-# Android Timezone Selector
+# Android Timezone Picker
 
 ![Release](https://jitpack.io/v/richard-muvirimi/android-timezone-selector.svg)
 
